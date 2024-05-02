@@ -6,5 +6,5 @@ This is a collection of 6 short exercises to practice Web Programming in Java. T
 2. Public chat in terminal
 3. Quotes management Wwebsite
 4. Weekly mmeal planner website
-5. TBD
+5. Public blog
 6. TBD

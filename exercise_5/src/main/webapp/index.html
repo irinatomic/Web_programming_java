@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="UTF-8">
+<head>
+    <title>Landing page</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/css/bootstrap.min.css"
+          integrity="sha384-B0vP5xmATw1+K9KRQjQERJvTumQW0nPEzvF6L/Z6nronJ3oUOFUFpCjEUQouq2+l" crossorigin="anonymous">
+
+    <style>
+        a:hover {
+            cursor:pointer;
+        }
+        .container {
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+
+<body>
+<div class="container">
+
+    <!-- ALL POSTS PAGE -->
+    <div id="all-posts">
+        <div id="postContainer" class="row">
+            <!-- Posts will be dynamically added here -->
+        </div>
+
+        <button id="newPostButton" class="btn btn-primary">New post</button>
+
+        <div id="newPostForm" style="display: none; margin-top: 20px">
+            <h2>New Post</h2>
+            <div class="form-group">
+                <label for="authorInput">Author:</label>
+                <input type="text" class="form-control" id="authorInput">
+            </div>
+            <div class="form-group">
+                <label for="titleInput">Title:</label>
+                <input type="text" class="form-control" id="titleInput">
+            </div>
+            <div class="form-group">
+                <label for="contentInput">Content:</label>
+                <textarea class="form-control" id="contentInput"></textarea>
+            </div>
+            <button id="savePostButton" class="btn btn-success">Save post</button>
+        </div>
+    </div>
+
+    <!-- SINGLE POST PAGE -->
+    <div id="single-post" style="display: none">
+        <button id="goBackButton" class="btn btn-primary" style="margin-bottom: 30px">Go back</button>
+        <div id="singlePostContainer"></div>
+        <h2> Comments </h2>
+        <div id="singlePostCommentsContainer"></div>
+        <div id="singlePostNewCommentContainer">
+            <h5 style="margin-top:20px">New Comment</h5>
+            <div class="form-group">
+                <label for="nameInput">Name:</label>
+                <input type="text" class="form-control" id="nameInput">
+            </div>
+            <div class="form-group">
+                <label for="commentInput">Content:</label>
+                <textarea class="form-control" id="commentInput"></textarea>
+            </div>
+            <button id="saveCommentButton" class="btn btn-success">Save comment</button>
+        </div>
+    </div>
+</div>
+
+<script>
+
+    let currentPostId = -1;
+
+    // Fetch posts from the API
+    fetchAllPosts();
+
+    function fetchAllPosts() {
+        fetch('/api/posts', { method: 'GET' })
+            .then(response => response.json())
+            .then(data => { displayPosts(data) });
+    }
+
+    // Display posts
+    function displayPosts(posts) {
+        const postContainer = document.getElementById('postContainer');
+        postContainer.innerHTML = ''; // Clear previous content
+
+        posts.forEach(post => {
+            const postBox = `<div class="col-md-6">
+                                <div class="card mb-3">
+                                    <div class="card-body">
+                                        <h5 class="card-title font-weight-bold">${post.title}</h5>
+                                        <h6 class="card-subtitle text-muted">${post.date}</h6>
+                                        <p class="card-text">${truncateText(post.content)}</p>
+                                        <a onclick="fetchPost(${post.id})" class="card-link">Read more...</a>
+                                    </div>
+                                </div>
+                             </div>`;
+            postContainer.innerHTML += postBox;
+        });
+    }
+
+    // Show max 50 words of the post content
+    function truncateText(text) {
+        const words = text.split(' ');
+        if (words.length > 50) {
+            return words.slice(0, 50).join(' ') + '...';
+        }
+        return text;
+    }
+
+    // Fetch the clicked post
+    function fetchPost(postId) {
+        fetch('/api/posts/' + postId, { method: 'GET' })
+            .then(response => response.json())
+            .then(data => {
+                console.log("Post: ", data);
+                currentPostId = data.id;
+                showPost(data);
+            });
+    }
+
+    function showPost(data) {
+        const allPostsPage = document.getElementById('all-posts');
+        const singlePostPage = document.getElementById('single-post');
+        allPostsPage.style.display = 'none';
+
+        const singlePostContainer = document.getElementById('singlePostContainer');
+        singlePostContainer.innerHTML = `
+            <h2>${data.title}</h2>
+            <h6>${data.date}</h6>
+            <h7 class="text-muted">${data.author}</h7>
+            <p>${data.content}</p>
+        `;
+
+        const singlePostCommentsContainer = document.getElementById('singlePostCommentsContainer');
+        singlePostCommentsContainer.innerHTML = data.comments.map(comment => `
+        <div style="margin-top: 10px">
+            <h5 class="card-subtitle text-muted">${comment.author}</h5>
+            <p class="card-text">${comment.content}</p>
+        </div>
+        `).join('');
+
+        singlePostPage.style.display = 'block';
+    }
+
+    // Toggle the new post form
+    document.getElementById('newPostButton').addEventListener('click', function() {
+        const form = document.getElementById('newPostForm');
+        form.style.display = form.style.display === 'none' ? 'block' : 'none';
+    });
+
+    // Save a new post
+    document.getElementById('savePostButton').addEventListener('click', function() {
+        const authorInput = document.getElementById('authorInput');
+        const titleInput = document.getElementById('titleInput');
+        const contentInput = document.getElementById('contentInput');
+
+        // send the post to the server
+        fetch('/api/posts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                author: authorInput.value,
+                title: titleInput.value,
+                content: contentInput.value
+            })
+        }).then(response => response.json())
+          .then(data => { fetchAllPosts() });
+
+        // clear the form
+        authorInput.value = "";
+        titleInput.value = "";
+        contentInput.value = "";
+
+        // hide the form
+        document.getElementById('newPostForm').style.display = 'none';
+    });
+
+    // Add comment
+    document.getElementById('saveCommentButton').addEventListener('click', function() {
+        const nameInput = document.getElementById('nameInput');
+        const contentInput = document.getElementById('commentInput');
+
+        // send the comment to the server
+        fetch('/api/posts/' + currentPostId + '/comments', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                author: nameInput.value,
+                content: contentInput.value
+            })
+        }).then(response => response.json())
+          .then(data => { fetchPost(currentPostId) });
+
+        // clear the form
+        nameInput.value = "";
+        contentInput.value = "";
+    });
+
+    // Go back to the all posts page
+    document.getElementById('goBackButton').addEventListener('click', function() {
+        document.getElementById('single-post').style.display = 'none';
+        document.getElementById('all-posts').style.display = 'block';
+    });
+
+</script>
+</body>
+</html>
